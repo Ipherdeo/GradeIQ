@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GradeIQ — CGPA Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0f0e;--surface:#161918;--surface2:#1e2220;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0ede8;--text2:#9a9890;--text3:#5a5955;--accent:#c8f060;--accent2:#a8d040;--accent-dim:rgba(200,240,96,0.08);--accent-dim2:rgba(200,240,96,0.18);--red:#ff6b6b;--amber:#f0a020;--blue:#60b8f0;--purple:#b08cff;--radius:12px;--radius-sm:8px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6}
+nav{position:sticky;top:0;z-index:100;background:rgba(13,15,14,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:60px;gap:1rem}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--accent);letter-spacing:-0.5px;flex-shrink:0}
+.logo span{color:var(--text2)}
+.nav-center{display:flex;gap:4px;flex:1;justify-content:center}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.nav-tab{padding:6px 14px;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--text2);transition:all 0.2s;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.nav-tab:hover{color:var(--text);background:var(--surface2)}
+.nav-tab.active{background:var(--accent);color:#0d0f0e;border-color:var(--accent)}
+.hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;padding:8px;flex-shrink:0}
+.hamburger span{display:block;height:2px;background:var(--text2);border-radius:2px;transition:all 0.2s}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.mobile-menu{display:none;position:sticky;top:60px;z-index:99;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 1.5rem;flex-direction:column;gap:6px}
+.mobile-menu.open{display:flex}
+.mob-tab{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:10px 14px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid transparent;background:transparent;color:var(--text2);transition:all 0.2s;text-align:left}
+.mob-tab:hover{color:var(--text);background:var(--surface2)}
+.mob-tab.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-dim2)}
+.scale-toggle{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.scale-toggle label{font-size:11px;color:var(--text3);white-space:nowrap;letter-spacing:0.3px}
+.toggle-wrap{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:999px;padding:2px;gap:2px}
+.toggle-opt{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text3);transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.toggle-opt.active{background:var(--accent);color:#0d0f0e}
+.hero{padding:4rem 2rem 2.5rem;max-width:900px;margin:0 auto;text-align:center}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);border:1px solid var(--accent-dim2);color:var(--accent);font-size:11px;font-weight:600;padding:4px 12px;border-radius:999px;margin-bottom:1.5rem;letter-spacing:0.8px;text-transform:uppercase}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1.1;letter-spacing:-1.5px;margin-bottom:1rem}
+.hero h1 em{color:var(--accent);font-style:normal}
+.hero p{font-size:1rem;color:var(--text2);max-width:460px;margin:0 auto 1.5rem;font-weight:300}
+.hero-stats{display:flex;gap:2.5rem;justify-content:center;flex-wrap:wrap}
+.hero-stat .n{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:700;color:var(--accent)}
+.hero-stat .l{font-size:11px;color:var(--text3);margin-top:1px}
+main{max-width:900px;margin:0 auto;padding:0 2rem 6rem}
+.panel{display:none}
+.panel.active{display:block;animation:fadeUp 0.3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* TRACKER */
+.sem-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:border-color 0.2s}
+.sem-card:hover{border-color:var(--border2)}
+.sem-head{display:flex;align-items:center;justify-content:space-between;padding:13px 20px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.sem-name{font-family:'Syne',sans-serif;font-weight:600;font-size:14px;color:var(--text)}
+.sem-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block;letter-spacing:0.2px}
+.badge-gpa{background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-dim2)}
+.badge-units{background:rgba(255,255,255,0.04);color:var(--text2);border:1px solid var(--border)}
+.sem-del-btn{background:transparent;border:1px solid var(--border);color:var(--text3);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.sem-del-btn:hover{color:var(--red);border-color:var(--red);background:rgba(255,107,107,0.08)}
+.col-labels{display:grid;grid-template-columns:1fr 64px 76px 50px 32px;gap:8px;padding:8px 20px 3px}
+.col-label{font-size:11px;color:var(--text3);letter-spacing:0.3px}
+.course-row{display:grid;grid-template-columns:1fr 64px 76px 50px 32px;gap:8px;padding:5px 20px;align-items:start}
+.name-cell{display:flex;flex-direction:column;gap:5px}
+.name-input-row{display:flex;align-items:center;gap:6px}
+input[type=text],input[type=number],select{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;height:34px;padding:0 10px;width:100%;transition:border-color 0.2s;-moz-appearance:textfield}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+input:focus,select:focus{outline:none;border-color:rgba(200,240,96,0.5)}
+input::placeholder{color:var(--text3)}
+select{cursor:pointer}
+select option{background:#1e2220}
+.grade-pill{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:34px;border-radius:var(--radius-sm);font-size:13px;font-weight:700}
+.g-A{background:rgba(200,240,96,0.12);color:var(--accent)}
+.g-B{background:rgba(96,184,240,0.12);color:var(--blue)}
+.g-C{background:rgba(240,160,32,0.12);color:var(--amber)}
+.g-D{background:rgba(255,107,107,0.1);color:#ff9d9d}
+.g-E{background:rgba(255,107,107,0.08);color:#ffbdbd}
+.g-F{background:rgba(255,107,107,0.18);color:var(--red)}
+.icon-btn{width:32px;height:34px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;flex-shrink:0}
+.icon-btn:hover{border-color:var(--red);color:var(--red);background:rgba(255,107,107,0.08)}
+.ai-tips-btn{font-size:10px;font-weight:700;letter-spacing:0.6px;padding:4px 10px;border-radius:5px;cursor:pointer;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-dim2);white-space:nowrap;transition:all 0.2s;flex-shrink:0;font-family:'DM Sans',sans-serif;height:26px;display:inline-flex;align-items:center}
+.ai-tips-btn:hover{background:var(--accent-dim2)}
+.ai-tips-btn.busy{opacity:0.5;cursor:default}
+.inline-insight-box{background:rgba(200,240,96,0.04);border:1px solid var(--accent-dim2);border-radius:var(--radius-sm);padding:10px 13px;font-size:12.5px;color:var(--text2);line-height:1.8;display:none}
+.inline-insight-box.open{display:block;animation:fadeUp 0.2s ease}
+.add-row-btn{margin:4px 20px 14px;background:transparent;border:1px dashed var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-size:13px;padding:8px;width:calc(100% - 40px);cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.add-row-btn:hover{color:var(--accent);border-color:var(--accent-dim2);background:var(--accent-dim)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:1.25rem 0}
+.btn{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:9px 20px;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.2s;border:none}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-outline:hover{color:var(--text);border-color:var(--text3);background:var(--surface2)}
+.btn-accent{background:var(--accent);color:#0d0f0e;font-weight:700}
+.btn-accent:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn-purple{background:rgba(176,140,255,0.12);color:var(--purple);border:1px solid rgba(176,140,255,0.25);font-weight:600}
+.btn-purple:hover{background:rgba(176,140,255,0.2)}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:1.25rem 0}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem}
+.metric-card.highlight{background:var(--accent-dim);border-color:var(--accent-dim2)}
+.metric-label{font-size:11px;color:var(--text3);letter-spacing:0.4px;text-transform:uppercase;margin-bottom:6px}
+.metric-val{font-family:'Syne',sans-serif;font-size:2rem;font-weight:700;color:var(--text);line-height:1}
+.metric-card.highlight .metric-val{color:var(--accent)}
+.metric-sub{font-size:12px;color:var(--text2);margin-top:6px}
+.section-head{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin:2rem 0 0.75rem;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:0.6px}
+.section-head::before{content:'';display:block;width:3px;height:14px;background:var(--accent);border-radius:2px}
+
+/* PREDICTOR */
+.pred-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1.25rem}
+.pred-field label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px}
+.pred-col-labels{display:grid;grid-template-columns:1fr 64px 110px 32px;gap:8px;margin-bottom:4px}
+.pred-course-row{display:grid;grid-template-columns:1fr 64px 110px 32px;gap:8px;margin-bottom:6px;align-items:center}
+.current-standing{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.25rem}
+.cs-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.cs-row:last-child{border-bottom:none;padding-bottom:0}
+.cs-label{color:var(--text2)}
+.cs-val{font-weight:500;color:var(--text)}
+
+/* GRADE SESSION PLANNER */
+.planner-card{background:var(--surface);border:1px solid rgba(176,140,255,0.2);border-radius:var(--radius);overflow:hidden;margin-top:1.5rem}
+.planner-head{background:rgba(176,140,255,0.07);border-bottom:1px solid rgba(176,140,255,0.15);padding:14px 20px;display:flex;align-items:center;gap:10px}
+.planner-head-icon{font-size:16px}
+.planner-head-text h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--purple);margin:0}
+.planner-head-text p{font-size:12px;color:var(--text3);margin:2px 0 0}
+.planner-body{padding:1.25rem 1.5rem}
+.planner-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem}
+.planner-field label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px}
+.planner-col-labels{display:grid;grid-template-columns:1fr 70px 32px;gap:8px;margin-bottom:4px}
+.planner-course-row{display:grid;grid-template-columns:1fr 70px 32px;gap:8px;margin-bottom:6px;align-items:center}
+.grade-target-table{margin-top:1.25rem;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.gtt-head{display:grid;grid-template-columns:1fr 68px 96px 110px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.gtt-head span{padding:9px 14px;font-size:11px;color:var(--text3);font-weight:600;letter-spacing:0.3px;text-transform:uppercase}
+.gtt-row{display:grid;grid-template-columns:1fr 68px 96px 110px;border-bottom:1px solid var(--border)}
+.gtt-row:last-child{border-bottom:none}
+.gtt-row:nth-child(even){background:rgba(255,255,255,0.015)}
+.gtt-row span{padding:9px 14px;font-size:13px;display:flex;align-items:center}
+.gtt-course{color:var(--text)}
+.gtt-units{color:var(--text2)}
+.gtt-gp{font-weight:600}
+.grade-tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.planner-result-summary{margin-top:1rem;background:var(--surface2);border-radius:var(--radius-sm);padding:1rem 1.25rem}
+.prs-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);gap:1rem}
+.prs-row:last-child{border-bottom:none;padding-bottom:0}
+.prs-label{color:var(--text2);flex-shrink:0}
+.prs-val{font-weight:500;color:var(--text);text-align:right}
+.prs-val.good{color:var(--accent)}
+.prs-val.warn{color:var(--amber)}
+.prs-val.bad{color:var(--red)}
+.planner-ceiling-note{margin-top:10px;font-size:12.5px;color:var(--text3);background:rgba(176,140,255,0.06);border:1px solid rgba(176,140,255,0.12);border-radius:var(--radius-sm);padding:10px 14px;line-height:1.7}
+
+/* INSIGHTS */
+.insights-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;margin-bottom:1.25rem}
+.insights-hero h2{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text);margin-bottom:6px;letter-spacing:-0.5px}
+.insights-hero p{font-size:13px;color:var(--text2);margin-bottom:1.25rem;max-width:520px}
+.search-row{display:flex;gap:10px;align-items:stretch}
+.search-row input{flex:1;height:46px;font-size:14px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:0 14px;font-family:'DM Sans',sans-serif;transition:border-color 0.2s}
+.search-row input:focus{outline:none;border-color:rgba(200,240,96,0.5)}
+.search-row input::placeholder{color:var(--text3)}
+.btn-go{height:46px;padding:0 24px;background:var(--accent);color:#0d0f0e;font-weight:700;font-size:14px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap}
+.btn-go:hover{background:var(--accent2)}
+.btn-go:disabled{opacity:0.5;cursor:default}
+.recent-wrap{margin-top:1rem}
+.recent-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.recent-chips{display:flex;flex-wrap:wrap;gap:7px}
+.recent-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--text2);padding:4px 12px;cursor:pointer;transition:all 0.2s}
+.recent-chip:hover{border-color:var(--accent-dim2);color:var(--accent);background:var(--accent-dim)}
+.insight-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none}
+.insight-card.open{display:block;animation:fadeUp 0.3s ease}
+.insight-card-head{background:var(--surface2);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.insight-course-name{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--accent)}
+.powered-by{font-size:11px;color:var(--text3)}
+.insight-sections{padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
+.insight-section{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.insight-section-head{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.insight-section-icon{font-size:14px;line-height:1}
+.insight-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px}
+.insight-section-body{padding:12px 14px;font-size:13.5px;color:var(--text2);line-height:1.85}
+.insight-section-body ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.insight-section-body li{padding-left:4px;position:relative}
+.difficulty-bar-wrap{padding:12px 14px}
+.difficulty-bar{height:8px;border-radius:4px;background:var(--surface);overflow:hidden;margin-bottom:8px;border:1px solid var(--border)}
+.difficulty-fill{height:100%;border-radius:4px}
+.difficulty-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.difficulty-score-label{font-size:13px;font-weight:600}
+.difficulty-summary{font-size:13px;color:var(--text2);line-height:1.7;margin-top:6px}
+.typing{display:flex;gap:5px;align-items:center;padding:1.5rem}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+.dot:nth-child(2){animation-delay:0.2s}
+.dot:nth-child(3){animation-delay:0.4s}
+@keyframes pulse{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}
+
+/* SCALE */
+.scale-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:0.75rem}
+.scale-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;text-align:center}
+.scale-grade{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:2px}
+.scale-range{font-size:11px;color:var(--text3)}
+.scale-gp{font-size:12px;color:var(--text2);margin-top:4px}
+.deg-classes{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:0.75rem}
+.deg-item{border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px}
+.deg-name{font-size:13px;font-weight:500}
+.deg-range{font-size:12px;color:var(--text3);margin-top:2px}
+.info-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;font-size:13px;color:var(--text2);line-height:2;margin-top:0.75rem}
+.scale-tabs{display:flex;gap:6px;margin-bottom:1rem}
+.scale-tab-btn{padding:5px 16px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.scale-tab-btn.active{background:var(--accent);color:#0d0f0e;border-color:var(--accent)}
+footer{text-align:center;padding:2rem;font-size:12px;color:var(--text3);border-top:1px solid var(--border)}
+
+/* ONBOARDING */
+.ob-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;backdrop-filter:blur(4px);overflow-y:auto}
+.ob-overlay.hidden{display:none}
+.ob-modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);max-width:520px;width:100%;overflow:hidden;animation:fadeUp 0.35s ease;margin:auto}
+.ob-header{background:var(--accent-dim);border-bottom:1px solid var(--accent-dim2);padding:1.5rem 1.75rem 1.25rem}
+.ob-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--accent);letter-spacing:-0.5px;margin-bottom:6px}
+.ob-logo span{color:var(--text2)}
+.ob-tagline{font-size:13px;color:var(--text2);font-weight:300}
+.ob-steps{padding:1.25rem 1.75rem;display:flex;flex-direction:column;gap:0}
+.ob-step{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)}
+.ob-step:last-child{border-bottom:none}
+.ob-step-num{width:28px;height:28px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent-dim2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0;margin-top:1px}
+.ob-step-body{}
+.ob-step-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.ob-step-desc{font-size:12.5px;color:var(--text2);line-height:1.6}
+.ob-step-desc strong{color:var(--text);font-weight:500}
+.ob-footer{padding:1rem 1.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.ob-scale-pick{display:flex;flex-direction:column;gap:6px}
+.ob-scale-pick label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px}
+.ob-scale-btns{display:flex;gap:6px}
+.ob-scale-btn{padding:6px 18px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.ob-scale-btn.selected{background:var(--accent);color:#0d0f0e;border-color:var(--accent)}
+.ob-start-btn{padding:10px 28px;background:var(--accent);color:#0d0f0e;font-weight:700;font-size:14px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap}
+.ob-start-btn:hover{background:var(--accent2)}
+@media(max-width:640px){
+  nav{padding:0 1rem}
+  .nav-center{display:none}
+  .hamburger{display:flex}
+  .hero{padding:3rem 1rem 2rem}
+  main{padding:0 1rem 4rem}
+  .col-labels,.course-row{grid-template-columns:1fr 54px 64px 42px 28px;gap:5px;padding-left:12px;padding-right:12px}
+  .pred-col-labels,.pred-course-row{grid-template-columns:1fr 54px 90px 26px}
+  .gtt-head,.gtt-row{grid-template-columns:1fr 56px 80px 90px}
+  .search-row{flex-direction:column}
+  .btn-go{width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING OVERLAY -->
+<div class="ob-overlay" id="ob-overlay">
+  <div class="ob-modal">
+    <div class="ob-header">
+      <div class="ob-logo">Grade<span>IQ</span></div>
+      <div class="ob-tagline">Your academic standing, clearly.</div>
+    </div>
+    <div class="ob-steps">
+      <div class="ob-step">
+        <div class="ob-step-num">1</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">Track your CGPA</div>
+          <div class="ob-step-desc">Enter your semesters, courses, and scores. Just type your <strong>score %</strong> — we convert it to a grade automatically. Hit <strong>Calculate CGPA</strong> to see your result and degree class.</div>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-step-num">2</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">Predict & plan your next session</div>
+          <div class="ob-step-desc">Head to <strong>Predictor</strong> to see where your CGPA lands after planned courses. Then use the <strong>Session Grade Planner</strong> to find out exactly what grade you need in each course to hit a target CGPA.</div>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-step-num">3</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">Get AI insights on any course</div>
+          <div class="ob-step-desc">Go to <strong>Insights</strong> and type any course topic — Thermodynamics, Organic Chemistry, anything. You'll get a difficulty rating, key concepts, pain points, study strategy, and real-world relevance.</div>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-step-num">4</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">Pick your grading scale</div>
+          <div class="ob-step-desc">Most Nigerian universities use a <strong>5.0 scale</strong> (University of Ibadan, UNILAG, etc.) or <strong>4.0 scale</strong>. Select yours below — you can change it anytime from the top right.</div>
+        </div>
+      </div>
+    </div>
+    <div class="ob-footer">
+      <div class="ob-scale-pick">
+        <label>My school uses</label>
+        <div class="ob-scale-btns">
+          <button class="ob-scale-btn selected" id="ob-scale-4" onclick="obSelectScale(4)">4.0 Scale</button>
+          <button class="ob-scale-btn" id="ob-scale-5" onclick="obSelectScale(5)">5.0 Scale</button>
+        </div>
+      </div>
+      <button class="ob-start-btn" onclick="obDismiss()">Let's go →</button>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <div class="logo">Grade<span>IQ</span></div>
+  <div class="nav-center" id="nav-center">
+    <button class="nav-tab active" onclick="switchTab('tracker',this);closeMenu()">Tracker</button>
+    <button class="nav-tab" onclick="switchTab('predictor',this);closeMenu()">Predictor</button>
+    <button class="nav-tab" onclick="switchTab('insights',this);closeMenu()">Insights</button>
+    <button class="nav-tab" onclick="switchTab('scale',this);closeMenu()">Scale</button>
+  </div>
+  <div class="nav-right">
+    <div class="scale-toggle">
+      <label>Scale</label>
+      <div class="toggle-wrap">
+        <button class="toggle-opt active" onclick="setScale(4,this)">4.0</button>
+        <button class="toggle-opt" onclick="setScale(5,this)">5.0</button>
+      </div>
+    </div>
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+<div class="mobile-menu hidden" id="mobile-menu">
+  <button class="mob-tab active" onclick="switchTab('tracker',this);closeMenu()">Tracker</button>
+  <button class="mob-tab" onclick="switchTab('predictor',this);closeMenu()">Predictor</button>
+  <button class="mob-tab" onclick="switchTab('insights',this);closeMenu()">Insights</button>
+  <button class="mob-tab" onclick="switchTab('scale',this);closeMenu()">Scale</button>
+</div>
+
+<div class="hero">
+  <div class="hero-tag">✦ Nigerian University Students</div>
+  <h1>Know your <em>real</em><br>academic standing</h1>
+  <p>Track CGPA, convert scores instantly, plan your session grades, and get deep AI course insights.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="n" id="hero-scale-n">4.0</div><div class="l">Point Scale</div></div>
+    <div class="hero-stat"><div class="n">AI</div><div class="l">Insights</div></div>
+    <div class="hero-stat"><div class="n">Live</div><div class="l">GPA Updates</div></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- TRACKER -->
+  <div id="panel-tracker" class="panel active">
+    <div id="semesters-container"></div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="addSemester()">+ Add Semester</button>
+      <button class="btn btn-accent" onclick="calculate()">Calculate CGPA</button>
+    </div>
+    <div id="tracker-results" style="display:none">
+      <div class="result-grid" id="tracker-metrics"></div>
+    </div>
+  </div>
+
+  <!-- PREDICTOR -->
+  <div id="panel-predictor" class="panel">
+    <div class="section-head">Current standing</div>
+    <div class="current-standing" id="pred-standing">
+      <div class="cs-row"><span class="cs-label">Add semesters in the Tracker, or enter manually below</span></div>
+    </div>
+    <div class="pred-grid">
+      <div class="pred-field"><label>Current CGPA</label><input type="number" id="p-cgpa" min="0" max="5" step="0.01" placeholder="e.g. 3.20"></div>
+      <div class="pred-field"><label>Total units so far</label><input type="number" id="p-units" min="0" placeholder="e.g. 60"></div>
+    </div>
+
+    <div class="section-head">Planned courses <span style="font-size:11px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400;margin-left:4px">(semester or session)</span></div>
+    <div id="pred-courses-container"></div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="addPredCourse()">+ Add Course</button>
+      <button class="btn btn-accent" onclick="runPrediction()">Predict my CGPA</button>
+    </div>
+    <div id="pred-results" style="display:none">
+      <div class="result-grid" id="pred-metrics"></div>
+    </div>
+
+    <!-- SESSION GRADE PLANNER -->
+    <div class="planner-card" id="planner-card" style="display:none">
+      <div class="planner-head">
+        <span class="planner-head-icon">🎯</span>
+        <div class="planner-head-text">
+          <h3>Session grade planner</h3>
+          <p>Enter your session courses + units + target CGPA — we'll tell you what grade you need in each course</p>
+        </div>
+      </div>
+      <div class="planner-body">
+        <div class="planner-inputs">
+          <div class="planner-field"><label>Current CGPA</label><input type="number" id="pl-cgpa" min="0" max="5" step="0.01" placeholder="e.g. 3.10"></div>
+          <div class="planner-field"><label>Units completed</label><input type="number" id="pl-units" min="0" placeholder="e.g. 60"></div>
+          <div class="planner-field"><label>Target CGPA</label><input type="number" id="pl-target" min="0" max="5" step="0.01" placeholder="e.g. 3.50"></div>
+          <div class="planner-field"><label>Min units this session</label><input type="number" id="pl-min-units" min="1" max="100" placeholder="e.g. 40" value="40"></div>
+          <div class="planner-field"><label>Max units this session</label><input type="number" id="pl-max-units" min="1" max="100" placeholder="e.g. 60" value="60"></div>
+        </div>
+        <div class="section-head" style="margin-top:0">Session courses</div>
+        <div style="display:grid;grid-template-columns:1fr 70px 32px;gap:8px;margin-bottom:4px">
+          <span class="col-label">Course name</span><span class="col-label">Units</span><span></span>
+        </div>
+        <div id="planner-courses"></div>
+        <button class="add-row-btn" style="margin:4px 0 1rem;width:100%" onclick="addPlannerCourse()">+ Add course</button>
+        <div class="actions" style="margin:0">
+          <button class="btn btn-purple" onclick="runPlanner()">Show me what grades I need</button>
+        </div>
+        <div id="planner-results" style="display:none;margin-top:1.25rem">
+          <div class="grade-target-table" id="grade-target-table"></div>
+          <div class="planner-result-summary" id="planner-summary"></div>
+          <div class="planner-ceiling-note" id="planner-ceiling"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div id="panel-insights" class="panel">
+    <div class="insights-hero">
+      <h2>Course insights</h2>
+      <p>Type any course topic for a full breakdown — difficulty, key concepts, pain points, study approach, prerequisites, and real-world relevance.</p>
+      <div class="search-row">
+        <input type="text" id="insight-input" placeholder="e.g. Thermodynamics, Organic Chemistry, Fluid Mechanics…" onkeydown="if(event.key==='Enter')getInsight()">
+        <button class="btn-go" id="insight-go-btn" onclick="getInsight()">Get Insights</button>
+      </div>
+      <div id="recent-wrap" style="display:none" class="recent-wrap">
+        <div class="recent-label">Recent</div>
+        <div class="recent-chips" id="recent-chips"></div>
+      </div>
+    </div>
+    <div class="insight-card" id="insight-card">
+      <div class="insight-card-head">
+        <span class="insight-course-name" id="insight-course-name"></span>
+        <span class="powered-by">Powered by AI</span>
+      </div>
+      <div id="insight-card-body"></div>
+    </div>
+  </div>
+
+  <!-- SCALE -->
+  <div id="panel-scale" class="panel">
+    <div class="scale-tabs">
+      <button class="scale-tab-btn active" onclick="showScaleTab('4',this)">4.0 Scale</button>
+      <button class="scale-tab-btn" onclick="showScaleTab('5',this)">5.0 Scale</button>
+    </div>
+    <div id="scale-content-4">
+      <div class="scale-grid">
+        <div class="scale-item"><div class="scale-grade g-A">A</div><div class="scale-range">70 – 100</div><div class="scale-gp">GP: 4.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-B">B</div><div class="scale-range">60 – 69</div><div class="scale-gp">GP: 3.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-C">C</div><div class="scale-range">50 – 59</div><div class="scale-gp">GP: 2.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-D">D</div><div class="scale-range">40 – 49</div><div class="scale-gp">GP: 1.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-F">F</div><div class="scale-range">0 – 39</div><div class="scale-gp">GP: 0.0</div></div>
+      </div>
+      <div class="section-head">Degree classifications (4.0)</div>
+      <div class="deg-classes">
+        <div class="deg-item"><div class="deg-name" style="color:var(--accent)">First Class</div><div class="deg-range">CGPA 3.50 – 4.00</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:var(--blue)">Second Class Upper</div><div class="deg-range">CGPA 3.00 – 3.49</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:var(--amber)">Second Class Lower</div><div class="deg-range">CGPA 2.00 – 2.99</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:#ff9d9d">Third Class</div><div class="deg-range">CGPA 1.50 – 1.99</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:var(--text2)">Pass</div><div class="deg-range">CGPA 1.00 – 1.49</div></div>
+      </div>
+    </div>
+    <div id="scale-content-5" style="display:none">
+      <div class="scale-grid">
+        <div class="scale-item"><div class="scale-grade g-A">A</div><div class="scale-range">70 – 100</div><div class="scale-gp">GP: 5.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-B">B</div><div class="scale-range">60 – 69</div><div class="scale-gp">GP: 4.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-C">C</div><div class="scale-range">50 – 59</div><div class="scale-gp">GP: 3.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-D">D</div><div class="scale-range">45 – 49</div><div class="scale-gp">GP: 2.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-E">E</div><div class="scale-range">40 – 44</div><div class="scale-gp">GP: 1.0</div></div>
+        <div class="scale-item"><div class="scale-grade g-F">F</div><div class="scale-range">0 – 39</div><div class="scale-gp">GP: 0.0</div></div>
+      </div>
+      <div class="section-head">Degree classifications (5.0)</div>
+      <div class="deg-classes">
+        <div class="deg-item"><div class="deg-name" style="color:var(--accent)">First Class</div><div class="deg-range">CGPA 4.50 – 5.00</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:var(--blue)">Second Class Upper</div><div class="deg-range">CGPA 3.50 – 4.49</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:var(--amber)">Second Class Lower</div><div class="deg-range">CGPA 2.50 – 3.49</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:#ff9d9d">Third Class</div><div class="deg-range">CGPA 1.50 – 2.49</div></div>
+        <div class="deg-item"><div class="deg-name" style="color:var(--text2)">Pass</div><div class="deg-range">CGPA 1.00 – 1.49</div></div>
+      </div>
+    </div>
+    <div class="section-head">How CGPA is calculated</div>
+    <div class="info-block">
+      For each course: <strong style="color:var(--text)">Quality Points = Credit Units × Grade Point</strong><br>
+      Semester GPA: <strong style="color:var(--text)">Total Quality Points ÷ Total Credit Units</strong><br>
+      CGPA is computed across <em>all</em> semesters combined — not an average of semester GPAs.
+    </div>
+  </div>
+
+</main>
+<footer>GradeIQ — built for Nigerian university students &nbsp;·&nbsp; AI insights by OpenRouter</footer>
+
+<script>
+// ── SCALE CONFIG ─────────────────────────────────────────────
+let currentScale = 4;
+const SC = {
+  4:{GP:{A:4,B:3,C:2,D:1,F:0},GRADES:['A','B','C','D','F'],
+    s2g(s){s=+s;if(isNaN(s))return null;if(s>=70)return'A';if(s>=60)return'B';if(s>=50)return'C';if(s>=40)return'D';return'F';},
+    deg(c){if(c>=3.5)return{cls:'First Class',col:'var(--accent)'};if(c>=3.0)return{cls:'2nd Class Upper',col:'var(--blue)'};if(c>=2.0)return{cls:'2nd Class Lower',col:'var(--amber)'};if(c>=1.5)return{cls:'Third Class',col:'#ff9d9d'};return{cls:'Pass',col:'var(--text2)'};},
+    max:4,
+    gp2info(gp){
+      const g=Math.ceil(Math.max(0,Math.min(4,gp)));
+      const m={4:{grade:'A',col:'var(--accent)',bg:'rgba(200,240,96,0.12)'},3:{grade:'B',col:'var(--blue)',bg:'rgba(96,184,240,0.12)'},2:{grade:'C',col:'var(--amber)',bg:'rgba(240,160,32,0.12)'},1:{grade:'D',col:'#ff9d9d',bg:'rgba(255,107,107,0.1)'},0:{grade:'F',col:'var(--red)',bg:'rgba(255,107,107,0.18)'}};
+      return m[g]||m[0];
+    }
+  },
+  5:{GP:{A:5,B:4,C:3,D:2,E:1,F:0},GRADES:['A','B','C','D','E','F'],
+    s2g(s){s=+s;if(isNaN(s))return null;if(s>=70)return'A';if(s>=60)return'B';if(s>=50)return'C';if(s>=45)return'D';if(s>=40)return'E';return'F';},
+    deg(c){if(c>=4.5)return{cls:'First Class',col:'var(--accent)'};if(c>=3.5)return{cls:'2nd Class Upper',col:'var(--blue)'};if(c>=2.5)return{cls:'2nd Class Lower',col:'var(--amber)'};if(c>=1.5)return{cls:'Third Class',col:'#ff9d9d'};return{cls:'Pass',col:'var(--text2)'};},
+    max:5,
+    gp2info(gp){
+      const g=Math.ceil(Math.max(0,Math.min(5,gp)));
+      const m={5:{grade:'A',col:'var(--accent)',bg:'rgba(200,240,96,0.12)'},4:{grade:'B',col:'var(--blue)',bg:'rgba(96,184,240,0.12)'},3:{grade:'C',col:'var(--amber)',bg:'rgba(240,160,32,0.12)'},2:{grade:'D',col:'#ff9d9d',bg:'rgba(255,107,107,0.1)'},1:{grade:'E',col:'#ffbdbd',bg:'rgba(255,107,107,0.08)'},0:{grade:'F',col:'var(--red)',bg:'rgba(255,107,107,0.18)'}};
+      return m[g]||m[0];
+    }
+  }
+};
+const cfg=()=>SC[currentScale];
+
+function setScale(n,btn){
+  currentScale=n;
+  document.querySelectorAll('.toggle-opt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('hero-scale-n').textContent=n+'.0';
+  renderSemesters();syncPredictorStanding();
+  if(lastTracker)updateTrackerMetrics(lastTracker);
+  // sync Scale tab
+  const scaleTabBtn=document.querySelector(`.scale-tab-btn[onclick="showScaleTab('${n}',this)"]`);
+  if(scaleTabBtn)showScaleTab(String(n),scaleTabBtn);
+}
+
+// ── STATE ─────────────────────────────────────────────────────
+let semCount=0,sems=[],predCourses=[],predCount=0;
+let plannerCourses=[],plannerCount=0,recentList=[],lastTracker=null;
+
+// ── TRACKER ───────────────────────────────────────────────────
+function calcSemGPA(courses){
+  let pts=0,units=0;
+  courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}});
+  return{gpa:units?pts/units:0,pts,units};
+}
+function addSemester(){semCount++;sems.push({id:semCount,courses:[]});const s=sems[sems.length-1];addCourse(s);addCourse(s);renderSemesters();}
+function addCourse(sem){sem.courses.push({name:'',units:'',score:'',grade:'A'});}
+function removeCourse(sid,idx){const s=sems.find(x=>x.id==sid);if(s){s.courses.splice(idx,1);renderSemesters();}}
+function removeSem(id){sems=sems.filter(s=>s.id!=id);renderSemesters();}
+
+function syncCF(el){
+  const[,sid,idx,field]=el.dataset.f.split(',');
+  const sem=sems.find(s=>s.id==sid);if(!sem)return;
+  const c=sem.courses[idx];c[field]=el.value;
+  if(field==='score'){const g=cfg().s2g(el.value);if(g){c.grade=g;const p=el.closest('.course-row').querySelector('.grade-pill');if(p){p.textContent=g;p.className='grade-pill g-'+g;}}}
+  updateSemBadges(sid);
+}
+function updateSemBadges(sid){
+  const sem=sems.find(s=>s.id==sid);const card=document.querySelector('[data-sem="'+sid+'"]');
+  if(!sem||!card)return;
+  const{gpa,units}=calcSemGPA(sem.courses);
+  card.querySelector('.badge-gpa').textContent=units?'GPA '+gpa.toFixed(2):'GPA —';
+  card.querySelector('.badge-units').textContent=units?units+' units':'— units';
+}
+// ── Rate limiting ────────────────────────────────────────────────
+const AI_RATE = {
+  MAX_CALLS: 5,
+  COOLDOWN_MS: 60000, // 1 minute cooldown after limit hit
+  _count: parseInt(sessionStorage.getItem('ai_call_count') || '0'),
+  _cooldownUntil: parseInt(sessionStorage.getItem('ai_cooldown_until') || '0'),
+  canCall() {
+    const now = Date.now();
+    if (now < this._cooldownUntil) return false;
+    if (this._count >= this.MAX_CALLS) {
+      this._cooldownUntil = now + this.COOLDOWN_MS;
+      sessionStorage.setItem('ai_cooldown_until', this._cooldownUntil);
+      this._count = 0;
+      sessionStorage.setItem('ai_call_count', '0');
+      return false;
+    }
+    return true;
+  },
+  increment() {
+    this._count++;
+    sessionStorage.setItem('ai_call_count', this._count);
+  },
+  remainingCooldown() {
+    const secs = Math.ceil((this._cooldownUntil - Date.now()) / 1000);
+    return secs > 0 ? secs : 0;
+  },
+  remaining() { return Math.max(0, this.MAX_CALLS - this._count); }
+};
+
+async function callAI(messages) {
+  const r = await fetch('/.netlify/functions/ai-insights', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'openrouter/auto', messages })
+  });
+  return r.json();
+}
+
+async function fetchInlineTips(sid,idx,btn){
+  const sem=sems.find(s=>s.id==sid);const c=sem.courses[idx];if(!c.name.trim())return;
+  const box=document.querySelector('[data-ibox="'+sid+','+idx+'"]');if(!box)return;
+  if(box.classList.contains('open')&&box.dataset.loaded){box.classList.remove('open');box.dataset.loaded='';return;}
+
+  // Rate limit check
+  if(!AI_RATE.canCall()){
+    const secs=AI_RATE.remainingCooldown();
+    box.classList.add('open');
+    box.textContent=secs>0?`⏳ Too many requests. Please wait ${secs}s before trying again.`:'⏳ Too many requests. Please wait a moment.';
+    box.dataset.loaded='yes';
+    return;
+  }
+
+  btn.textContent='…';btn.classList.add('busy');box.classList.add('open');box.textContent='Getting tips…';box.dataset.loaded='';
+  try{
+    AI_RATE.increment();
+    const d=await callAI([{role:'user',content:'Academic advisor for Nigerian uni students. Course: "'+c.name+'". Give exactly 3 short bullets: one key concept, one study tip, one exam pitfall. Each under 25 words. Start each with an emoji.'}]);
+    const text=d.choices?.[0]?.message?.content;
+    if(!text){box.textContent='Could not load. Try again.';box.dataset.loaded='yes';btn.textContent='AI TIPS';btn.classList.remove('busy');return;}
+    box.textContent=text;box.dataset.loaded='yes';
+  }catch(e){box.textContent='Could not load. Check your connection.';}
+  btn.textContent='AI TIPS';btn.classList.remove('busy');
+}
+function renderSemesters(){
+  const ct=document.getElementById('semesters-container');ct.innerHTML='';
+  sems.forEach((sem,si)=>{
+    const{gpa,units}=calcSemGPA(sem.courses);
+    const rows=sem.courses.map((c,ci)=>`
+      <div class="course-row">
+        <div class="name-cell">
+          <div class="name-input-row">
+            <input type="text" placeholder="Course name (optional)" value="${eq(c.name)}" data-f="f,${sem.id},${ci},name" oninput="syncCF(this)">
+          </div>
+          <div class="inline-insight-box" data-ibox="${sem.id},${ci}"></div>
+        </div>
+        <input type="number" placeholder="Units" min="1" max="6" value="${c.units}" data-f="f,${sem.id},${ci},units" oninput="syncCF(this)">
+        <input type="number" placeholder="Score %" min="0" max="100" value="${c.score}" data-f="f,${sem.id},${ci},score" oninput="syncCF(this)">
+        <span class="grade-pill g-${c.grade}">${c.grade}</span>
+        <button class="icon-btn" onclick="removeCourse(${sem.id},${ci})">×</button>
+      </div>`).join('');
+    const card=document.createElement('div');card.className='sem-card';card.dataset.sem=sem.id;
+    card.innerHTML=`
+      <div class="sem-head">
+        <div><div class="sem-name">Semester ${si+1}</div></div>
+        <div class="sem-badges">
+          <span class="badge badge-gpa">${units?'GPA '+gpa.toFixed(2):'GPA —'}</span>
+          <span class="badge badge-units">${units?units+' units':'— units'}</span>
+          <button class="sem-del-btn" onclick="removeSem(${sem.id})">Remove</button>
+        </div>
+      </div>
+      <div class="col-labels"><span class="col-label">Course</span><span class="col-label">Units</span><span class="col-label">Score %</span><span class="col-label">Grade</span><span></span></div>
+      ${rows}
+      <button class="add-row-btn" onclick="addCourse(sems.find(s=>s.id==${sem.id}));renderSemesters()">+ Add course</button>`;
+    ct.appendChild(card);
+  });
+  syncPredictorStanding();
+}
+function updateTrackerMetrics(d){
+  const{cgpa,totalUnits,totalPts}=d;const{cls,col}=cfg().deg(cgpa);
+  document.getElementById('tracker-metrics').innerHTML=`
+    <div class="metric-card highlight"><div class="metric-label">CGPA</div><div class="metric-val">${cgpa.toFixed(2)}</div><div class="metric-sub" style="color:${col};font-weight:600">${cls}</div></div>
+    <div class="metric-card"><div class="metric-label">Total credit units</div><div class="metric-val">${totalUnits}</div></div>
+    <div class="metric-card"><div class="metric-label">Quality points</div><div class="metric-val">${totalPts.toFixed(1)}</div></div>
+    <div class="metric-card"><div class="metric-label">Semesters</div><div class="metric-val">${sems.length}</div></div>`;
+}
+function calculate(){
+  let pts=0,units=0;
+  sems.forEach(s=>s.courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}}));
+  if(!units){alert('Add some courses with units first.');return;}
+  const cgpa=pts/units;lastTracker={cgpa,totalUnits:units,totalPts:pts};
+  updateTrackerMetrics(lastTracker);
+  document.getElementById('tracker-results').style.display='block';
+  document.getElementById('tracker-results').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── PREDICTOR ────────────────────────────────────────────────
+function syncPredictorStanding(){
+  let pts=0,units=0;
+  sems.forEach(s=>s.courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}}));
+  const el=document.getElementById('pred-standing');
+  if(units>0){
+    const cgpa=pts/units;const{cls}=cfg().deg(cgpa);
+    el.innerHTML=`
+      <div class="cs-row"><span class="cs-label">Current CGPA (from tracker)</span><span class="cs-val">${cgpa.toFixed(2)}</span></div>
+      <div class="cs-row"><span class="cs-label">Total units completed</span><span class="cs-val">${units}</span></div>
+      <div class="cs-row"><span class="cs-label">Current classification</span><span class="cs-val">${cls}</span></div>`;
+    document.getElementById('p-cgpa').value=cgpa.toFixed(2);
+    document.getElementById('p-units').value=units;
+    document.getElementById('pl-cgpa').value=cgpa.toFixed(2);
+    document.getElementById('pl-units').value=units;
+  }else{
+    el.innerHTML=`<div class="cs-row"><span class="cs-label">No tracker data yet — enter manually below</span></div>`;
+  }
+}
+function addPredCourse(){predCount++;predCourses.push({id:predCount,name:'',units:'',grade:'A'});renderPredCourses();}
+function removePredCourse(id){predCourses=predCourses.filter(c=>c.id!=id);renderPredCourses();}
+function syncPF(el){const[,id,field]=el.dataset.p.split(',');const c=predCourses.find(x=>x.id==id);if(c)c[field]=el.value;}
+function renderPredCourses(){
+  const el=document.getElementById('pred-courses-container');
+  el.innerHTML=`<div class="pred-col-labels"><span class="col-label">Course (optional)</span><span class="col-label">Units</span><span class="col-label">Expected grade</span><span></span></div>`
+    +predCourses.map(c=>`<div class="pred-course-row">
+      <input type="text" placeholder="e.g. Fluid Mechanics" value="${eq(c.name)}" data-p="p,${c.id},name" oninput="syncPF(this)">
+      <input type="number" placeholder="Units" min="1" max="6" value="${c.units}" data-p="p,${c.id},units" oninput="syncPF(this)">
+      <select data-p="p,${c.id},grade" onchange="syncPF(this)">${cfg().GRADES.map(g=>`<option value="${g}" ${c.grade===g?'selected':''}>${g}</option>`).join('')}</select>
+      <button class="icon-btn" onclick="removePredCourse(${c.id})">×</button>
+    </div>`).join('');
+}
+function runPrediction(){
+  const curCGPA=+document.getElementById('p-cgpa').value;
+  const curUnits=+document.getElementById('p-units').value;
+  if(isNaN(curCGPA)||isNaN(curUnits)||!curUnits){alert('Enter your current CGPA and total units.');return;}
+  let newPts=0,newUnits=0;
+  predCourses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){newPts+=u*g;newUnits+=u;}});
+  if(!newUnits){alert('Add planned courses with units.');return;}
+  const projCGPA=(curCGPA*curUnits+newPts)/(curUnits+newUnits);
+  const{cls,col}=cfg().deg(projCGPA);
+  document.getElementById('pred-metrics').innerHTML=`
+    <div class="metric-card highlight"><div class="metric-label">Projected CGPA</div><div class="metric-val">${projCGPA.toFixed(2)}</div><div class="metric-sub" style="color:${col};font-weight:600">${cls}</div></div>
+    <div class="metric-card"><div class="metric-label">New units</div><div class="metric-val">${newUnits}</div></div>
+    <div class="metric-card"><div class="metric-label">Total units after</div><div class="metric-val">${curUnits+newUnits}</div></div>`;
+  document.getElementById('pred-results').style.display='block';
+  document.getElementById('pred-results').scrollIntoView({behavior:'smooth',block:'nearest'});
+  // open planner with synced values
+  document.getElementById('pl-cgpa').value=curCGPA.toFixed(2);
+  document.getElementById('pl-units').value=curUnits;
+  // copy pred courses into planner
+  plannerCourses=predCourses.filter(c=>+c.units>0).map((c,i)=>({id:i+1,name:c.name||'Course '+(i+1),units:c.units}));
+  plannerCount=plannerCourses.length||0;
+  renderPlannerCourses();
+  document.getElementById('planner-card').style.display='block';
+  setTimeout(()=>document.getElementById('planner-card').scrollIntoView({behavior:'smooth',block:'nearest'}),200);
+}
+
+// ── SESSION GRADE PLANNER ────────────────────────────────────
+function addPlannerCourse(){plannerCount++;plannerCourses.push({id:plannerCount,name:'',units:''});renderPlannerCourses();}
+function removePlannerCourse(id){plannerCourses=plannerCourses.filter(c=>c.id!=id);renderPlannerCourses();}
+function syncPLC(el){const[,id,field]=el.dataset.pl.split(',');const c=plannerCourses.find(x=>x.id==id);if(c)c[field]=el.value;}
+function renderPlannerCourses(){
+  document.getElementById('planner-courses').innerHTML=plannerCourses.map(c=>`
+    <div style="display:grid;grid-template-columns:1fr 70px 32px;gap:8px;margin-bottom:6px;align-items:center">
+      <input type="text" placeholder="Course name" value="${eq(c.name)}" data-pl="pl,${c.id},name" oninput="syncPLC(this)">
+      <input type="number" placeholder="Units" min="1" max="6" value="${c.units}" data-pl="pl,${c.id},units" oninput="syncPLC(this)">
+      <button class="icon-btn" onclick="removePlannerCourse(${c.id})">×</button>
+    </div>`).join('');
+}
+
+function runPlanner(){
+  const curCGPA=+document.getElementById('pl-cgpa').value;
+  const curUnits=+document.getElementById('pl-units').value;
+  const target=+document.getElementById('pl-target').value;
+  const maxAllowed=+document.getElementById('pl-max-units').value||60;
+  const minAllowed=+document.getElementById('pl-min-units').value||40;
+  if(isNaN(curCGPA)||isNaN(curUnits)||isNaN(target)){alert('Fill in current CGPA, units, and target CGPA.');return;}
+  const courses=plannerCourses.filter(c=>+c.units>0);
+  if(!courses.length){alert('Add at least one course with units.');return;}
+
+  const sessionUnits=courses.reduce((s,c)=>s+(+c.units),0);
+  const existPts=curCGPA*curUnits;
+  const maxGP=cfg().max;
+  const maxReachable=(existPts+sessionUnits*maxGP)/(curUnits+sessionUnits);
+  const minPossible=existPts/(curUnits+sessionUnits);
+
+  // needed avg GP across session
+  const neededTotalPts=target*(curUnits+sessionUnits)-existPts;
+  const neededAvgGP=neededTotalPts/sessionUnits;
+
+  // also compute: how many units of A are needed if student wants to reach target
+  // assume student gets A in some courses and minimum passing (D/E) in rest
+  // find min units of A needed
+  const gpA=maxGP;
+  const gpMin=currentScale===4?1:1; // D or E
+  // solve: gpA*x + gpMin*(sessionUnits-x) = neededTotalPts  =>  x = (neededTotalPts - gpMin*sessionUnits)/(gpA-gpMin)
+  const unitsOfANeeded=Math.ceil((neededTotalPts - gpMin*sessionUnits)/(gpA-gpMin));
+
+  const resEl=document.getElementById('planner-results');
+  const tableEl=document.getElementById('grade-target-table');
+  const summaryEl=document.getElementById('planner-summary');
+  const ceilEl=document.getElementById('planner-ceiling');
+
+  if(neededAvgGP>maxGP){
+    tableEl.innerHTML='';
+    summaryEl.innerHTML=`<div class="prs-row"><span class="prs-label">Status</span><span class="prs-val bad">Target not achievable this session</span></div>
+      <div class="prs-row"><span class="prs-label">Highest possible CGPA this session</span><span class="prs-val warn">${maxReachable.toFixed(2)}</span></div>`;
+    const{cls:mxCls}=cfg().deg(maxReachable);
+    const cgpaAtMinU=(existPts+minAllowed*maxGP)/(curUnits+minAllowed);
+    const cgpaAtMaxU=(existPts+maxAllowed*maxGP)/(curUnits+maxAllowed);
+    const{cls:mnC}=cfg().deg(cgpaAtMinU);const{cls:mxC2}=cfg().deg(cgpaAtMaxU);
+    ceilEl.innerHTML=`Even with straight A's, the highest reachable with your ${sessionUnits} units is <strong>${maxReachable.toFixed(2)}</strong>. `
+      +`With the minimum load of <strong>${minAllowed} units</strong> you'd get <strong>${cgpaAtMinU.toFixed(2)}</strong> (${mnC}); `
+      +`with the maximum of <strong>${maxAllowed} units</strong> you'd get <strong>${cgpaAtMaxU.toFixed(2)}</strong> (${mxC2}). Consider adjusting your target.`;
+    resEl.style.display='block';return;
+  }
+  if(neededAvgGP<=0){
+    tableEl.innerHTML='';
+    summaryEl.innerHTML=`<div class="prs-row"><span class="prs-label">Status</span><span class="prs-val good">Target already secured</span></div>
+      <div class="prs-row"><span class="prs-label">Minimum possible CGPA</span><span class="prs-val">${minPossible.toFixed(2)}</span></div>`;
+    ceilEl.textContent=`Your target CGPA of ${target} is secured even if you pass all courses with the minimum grade. Keep it up!`;
+    resEl.style.display='block';return;
+  }
+
+  // CGPA at minimum unit load (minAllowed units, all A)
+  const cgpaAtMin=(existPts+minAllowed*maxGP)/(curUnits+minAllowed);
+  const cgpaAtMax=(existPts+maxAllowed*maxGP)/(curUnits+maxAllowed);
+  const{cls:minCls}=cfg().deg(cgpaAtMin);
+  const{cls:maxCls}=cfg().deg(cgpaAtMax);
+  const tableRows=courses.map(c=>{
+    const u=+c.units;
+    const gi=cfg().gp2info(neededAvgGP);
+    return`<div class="gtt-row">
+      <span class="gtt-course">${c.name||'Unnamed'}</span>
+      <span class="gtt-units">${u} units</span>
+      <span class="gtt-gp" style="color:${gi.col}">${neededAvgGP.toFixed(2)}</span>
+      <span><span class="grade-tag" style="background:${gi.bg};color:${gi.col}">${gi.grade} minimum</span></span>
+    </div>`;
+  }).join('');
+
+  tableEl.innerHTML=`<div class="gtt-head"><span>Course</span><span>Units</span><span>Min GP</span><span>Grade needed</span></div>${tableRows}`;
+
+  const{cls:tgtCls}=cfg().deg(target);
+  const{cls:mxCls}=cfg().deg(maxReachable);
+  const giAvg=cfg().gp2info(neededAvgGP);
+
+  // units of A calculation display
+  let unitsNote='';
+  if(unitsOfANeeded>0&&unitsOfANeeded<=sessionUnits){
+    const minGrade=currentScale===4?'D':'E';
+    unitsNote=`To hit your target while getting ${minGrade} in the rest, you'd need at least <strong>${unitsOfANeeded} units of A</strong> this session.`;
+  }
+
+  summaryEl.innerHTML=`
+    <div class="prs-row"><span class="prs-label">Target CGPA</span><span class="prs-val" style="color:${giAvg.col}">${target} — ${tgtCls}</span></div>
+    <div class="prs-row"><span class="prs-label">Average GP needed across ${sessionUnits} units</span><span class="prs-val">${neededAvgGP.toFixed(2)} (${giAvg.grade} in every course)</span></div>
+    <div class="prs-row"><span class="prs-label">Total session units</span><span class="prs-val">${sessionUnits}</span></div>
+    ${unitsNote?`<div class="prs-row"><span class="prs-label">Minimum units of A needed</span><span class="prs-val">${unitsOfANeeded} units</span></div>`:''}
+  `;
+
+  ceilEl.innerHTML=`With your ${sessionUnits} registered units and straight A's, the highest you can reach this session is <strong>${maxReachable.toFixed(2)}</strong> (${mxCls}).<br><br>`
+    +`With the <strong>minimum load of ${minAllowed} units</strong> (all A's), you'd reach <strong>${cgpaAtMin.toFixed(2)}</strong> (${minCls}). `
+    +`With the <strong>maximum load of ${maxAllowed} units</strong> (all A's), you'd reach <strong>${cgpaAtMax.toFixed(2)}</strong> (${maxCls}).`
+    +(sessionUnits<maxAllowed?` You currently have ${sessionUnits} units — adding ${maxAllowed-sessionUnits} more could push your ceiling higher.`:'');
+
+  resEl.style.display='block';
+  resEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── INSIGHTS ─────────────────────────────────────────────────
+async function getInsight(){
+  const input=document.getElementById('insight-input');
+  const course=input.value.trim();if(!course)return;
+  // validate: reject pure numbers or course codes (e.g. MAT251, ENG 101, 12345)
+  if(/^\d+$/.test(course)||/^[A-Z]{2,4}\s?\d{2,4}$/i.test(course)){
+    const body=document.getElementById('insight-card-body');
+    const card=document.getElementById('insight-card');
+    document.getElementById('insight-course-name').textContent='Invalid input';
+    card.classList.add('open');
+    body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--amber);line-height:1.7';
+    body.textContent='Wrong format: This requires you to enter a course title only (e.g. "Thermodynamics", "Organic Chemistry") — not a course code or number.';
+    return;
+  }
+  const btn=document.getElementById('insight-go-btn');
+  const card=document.getElementById('insight-card');
+  const body=document.getElementById('insight-card-body');
+  document.getElementById('insight-course-name').textContent=course;
+  btn.disabled=true;btn.textContent='Loading…';card.classList.add('open');
+  body.innerHTML='<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+
+  const prompt=`You are an expert academic advisor for Nigerian university students. Give a detailed breakdown of the course: "${course}".
+
+You MUST respond with ONLY a raw JSON object. No markdown fences, no explanation before or after, no code blocks. Start your response with { and end with }.
+
+Use this exact structure:
+{
+  "difficulty": {
+    "score": <number from 1 to 10>,
+    "label": "<one of: Easy, Moderate, Challenging, Very Hard>",
+    "summary": "<one sentence explaining the difficulty rating>"
+  },
+  "key_topics": ["<topic 1>", "<topic 2>", "<topic 3>", "<topic 4>", "<topic 5>"],
+  "pain_points": ["<pain point 1>", "<pain point 2>", "<pain point 3>", "<pain point 4>"],
+  "study_approach": ["<tip 1>", "<tip 2>", "<tip 3>", "<tip 4>"],
+  "dependencies": ["<prerequisite 1>", "<prerequisite 2>", "<prerequisite 3>"],
+  "real_world": ["<application 1>", "<application 2>", "<application 3>", "<application 4>"]
+}`;
+
+  // Rate limit check for getInsight
+  if(!AI_RATE.canCall()){
+    const secs=AI_RATE.remainingCooldown();
+    body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--amber);line-height:1.7';
+    body.textContent=secs>0?`⏳ Too many AI requests. Please wait ${secs} seconds before trying again. (${AI_RATE.MAX_CALLS} requests allowed per session)`:'⏳ Too many AI requests. Please wait a moment before trying again.';
+    btn.disabled=false;btn.textContent='Get Insights';return;
+  }
+
+  try{
+    AI_RATE.increment();
+    const d=await callAI([{role:'user',content:prompt}]);
+    const rawText=d.choices?.[0]?.message?.content;
+    console.log('OpenRouter response:',JSON.stringify(d));
+    if(!rawText){
+      body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--red)';
+      body.textContent='Could not load insights. Error: '+JSON.stringify(d).slice(0,200);
+      btn.disabled=false;btn.textContent='Get Insights';return;
+    }
+    let raw=rawText.trim();
+    raw=raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
+    let data;
+    try{data=JSON.parse(raw);}catch(parseErr){
+      body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--text2);line-height:1.9;white-space:pre-wrap';
+      body.textContent=raw;btn.disabled=false;btn.textContent='Get Insights';return;
+    }
+    buildInsightUI(body,data,course);
+  }catch(e){
+    body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--red)';
+    body.textContent='Could not load insights. Check your connection and try again.';
+  }
+  btn.disabled=false;btn.textContent='Get Insights';
+  if(!recentList.includes(course)){recentList.unshift(course);if(recentList.length>6)recentList.pop();renderRecent();}
+}
+
+function buildInsightUI(body,data,courseName){
+  const diff=data.difficulty||{};
+  const score=Math.min(10,Math.max(1,parseInt(diff.score)||5));
+  const pct=(score/10)*100;
+  let barColor='var(--accent)';
+  if(score>=8)barColor='var(--red)';
+  else if(score>=6)barColor='var(--amber)';
+  else if(score>=4)barColor='var(--blue)';
+
+  function makeList(arr){
+    if(!Array.isArray(arr)||!arr.length)return'<p style="color:var(--text3);font-size:13px">No data available.</p>';
+    return`<ul>${arr.map(item=>`<li>${item}</li>`).join('')}</ul>`;
+  }
+
+  const sections=[
+    {icon:'📊',title:'Difficulty breakdown',col:'var(--purple)',
+      html:`<div class="difficulty-bar-wrap">
+        <div class="difficulty-meta">
+          <span class="difficulty-score-label" style="color:${barColor}">${diff.label||'Moderate'}</span>
+          <span style="font-size:12px;color:var(--text3)">${score} / 10</span>
+        </div>
+        <div class="difficulty-bar"><div class="difficulty-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="difficulty-summary">${diff.summary||''}</div>
+      </div>`},
+    {icon:'📚',title:'Key topics & concepts',col:'var(--accent)',list:data.key_topics},
+    {icon:'😬',title:'Common pain points',col:'var(--red)',list:data.pain_points},
+    {icon:'🎯',title:'Recommended study approach',col:'var(--blue)',list:data.study_approach},
+    {icon:'🔗',title:'Course dependencies',col:'var(--amber)',list:data.dependencies},
+    {icon:'🌍',title:'Real-world relevance',col:'var(--accent2)',list:data.real_world},
+  ];
+
+  const wrap=document.createElement('div');wrap.className='insight-sections';
+  sections.forEach(s=>{
+    const sec=document.createElement('div');sec.className='insight-section';
+    const bodyContent=s.html||(s.list?`<div class="insight-section-body">${makeList(s.list)}</div>`:'');
+    sec.innerHTML=`<div class="insight-section-head"><span class="insight-section-icon">${s.icon}</span><span class="insight-section-title" style="color:${s.col}">${s.title}</span></div>${bodyContent}`;
+    wrap.appendChild(sec);
+  });
+  body.innerHTML='';body.appendChild(wrap);
+}
+
+function renderRecent(){
+  const wrap=document.getElementById('recent-wrap');const chips=document.getElementById('recent-chips');
+  if(!recentList.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  chips.innerHTML=recentList.map(r=>`<span class="recent-chip" onclick="loadRecent('${r.replace(/'/g,"\\'")}')">↩ ${r}</span>`).join('');
+}
+function loadRecent(name){document.getElementById('insight-input').value=name;getInsight();}
+
+// ── SCALE TAB ────────────────────────────────────────────────
+function showScaleTab(n,btn){
+  document.querySelectorAll('.scale-tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('scale-content-4').style.display=n==='4'?'block':'none';
+  document.getElementById('scale-content-5').style.display=n==='5'?'block':'none';
+}
+
+// ── HAMBURGER MENU ───────────────────────────────────────────
+function toggleMenu(){
+  const menu=document.getElementById('mobile-menu');
+  const btn=document.getElementById('hamburger');
+  const open=menu.classList.toggle('open');
+  btn.classList.toggle('open',open);
+}
+function closeMenu(){
+  document.getElementById('mobile-menu').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+}
+
+// ── NAV & UTILS ──────────────────────────────────────────────
+function switchTab(id,btn){
+  document.querySelectorAll('.nav-tab,.mob-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  // activate matching tabs in both nav and mobile menu
+  document.querySelectorAll('.nav-tab,.mob-tab').forEach(b=>{
+    if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'"))b.classList.add('active');
+  });
+  document.getElementById('panel-'+id).classList.add('active');
+  if(id==='predictor')syncPredictorStanding();
+}
+function eq(s){return(s||'').replace(/"/g,'&quot;');}
+
+// ── ONBOARDING ────────────────────────────────────────────────
+let obChosenScale=4;
+function obSelectScale(n){
+  obChosenScale=n;
+  document.getElementById('ob-scale-4').classList.toggle('selected',n===4);
+  document.getElementById('ob-scale-5').classList.toggle('selected',n===5);
+}
+function obDismiss(){
+  document.getElementById('ob-overlay').classList.add('hidden');
+  // apply chosen scale
+  if(obChosenScale!==currentScale){
+    const toggleBtn=document.querySelector('.toggle-opt'+(obChosenScale===4?':first-child':':last-child'));
+    if(toggleBtn)setScale(obChosenScale,toggleBtn);
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+addSemester();
+addPredCourse();addPredCourse();renderPredCourses();
+addPlannerCourse();addPlannerCourse();renderPlannerCourses();
+</script>
+</body>
+</html>
