@@ -4,7 +4,7 @@ GradeIQ is a smart CGPA calculator and academic planning tool for Nigerian unive
 
 ## Deploy to Vercel
 
-Import this repository into Vercel, then add the variables in `.env.example` under **Project Settings → Environment Variables**. `ANTHROPIC_API_KEY` is required. The endpoint uses Claude Sonnet 4.6, adaptive thinking, and Anthropic's web-search tool; the API key never reaches the browser.
+Import this repository into Vercel, then add one provider configuration from `.env.example` under **Project Settings → Environment Variables**. A direct `ANTHROPIC_API_KEY` enables Claude Sonnet 4.6, adaptive thinking, and Anthropic's web-search tool. VyceAI uses the OpenAI-compatible `AI_API_*` variables instead; the API key never reaches the browser.
 
 For production rate limiting, create an Upstash Redis database and add its REST URL and token. Without Upstash, a best-effort per-instance fallback is used, which is appropriate only for local development.
 

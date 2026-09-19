@@ -5,7 +5,13 @@ const MAX_REQUESTS = Number(process.env.AI_RATE_MAX_REQUESTS || 6);
 const memoryCounters = new Map();
 
 function send(res, status, body, headers = {}) {
-  res.status(status).set({ 'Content-Type': 'application/json', ...headers }).send(JSON.stringify(body));
+  // Use the Node response primitives supported by Vercel's serverless runtime.
+  // Chaining res.status().set() is not supported on every runtime version.
+  res.statusCode = status;
+  for (const [name, value] of Object.entries({ 'Content-Type': 'application/json', ...headers })) {
+    res.setHeader(name, value);
+  }
+  res.end(JSON.stringify(body));
 }
 
 function clientIp(req) {
@@ -34,9 +40,15 @@ function textFrom(content) {
   return (content || []).filter(block => block.type === 'text').map(block => block.text).join('\n').trim();
 }
 
+const SYSTEM_PROMPT = 'You are GradeIQ, an accurate academic adviser for Nigerian university students. Use web search when current, university-specific, or factual research would improve an answer. Reason carefully, do not invent sources or policies, and give practical, concise guidance. Do not expose private reasoning.';
+
+function isOpenAICompatible() {
+  return (process.env.AI_API_FORMAT || '').toLowerCase() === 'openai';
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' }, { Allow: 'POST' });
-  if (!process.env.ANTHROPIC_API_KEY) return send(res, 500, { error: 'Server configuration is incomplete.' });
+  if (!process.env.AI_API_KEY && !process.env.ANTHROPIC_API_KEY) return send(res, 500, { error: 'Server configuration is incomplete.' });
 
   const limit = await rateLimit(`gradeiq:ai:${clientIp(req)}`);
   if (!limit.allowed) return send(res, 429, { error: 'Too many AI requests. Please try again shortly.' }, { 'Retry-After': String(limit.retryAfter) });
@@ -49,12 +61,30 @@ export default async function handler(req, res) {
     model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
     max_tokens: 1400,
     thinking: { type: 'adaptive' },
-    system: 'You are GradeIQ, an accurate academic adviser for Nigerian university students. Use web search when current, university-specific, or factual research would improve an answer. Reason carefully, do not invent sources or policies, and give practical, concise guidance. Do not expose private reasoning.',
+    system: SYSTEM_PROMPT,
     messages: safeMessages,
     tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }]
   };
 
   try {
+    if (isOpenAICompatible()) {
+      const baseUrl = (process.env.AI_API_BASE_URL || 'https://vyceai.com/v1').replace(/\/$/, '');
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${process.env.AI_API_KEY}` },
+        body: JSON.stringify({
+          model: process.env.AI_MODEL || DEFAULT_MODEL,
+          max_tokens: 1400,
+          messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...safeMessages]
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) return send(res, response.status, { error: data.error?.message || data.message || 'VyceAI could not complete this request.' });
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (!content) return send(res, 502, { error: 'VyceAI returned no usable text.' });
+      return send(res, 200, { choices: [{ message: { content } }], usage: data.usage });
+    }
+
     let data;
     let conversation = safeMessages;
     // Server-side web search can return pause_turn while Claude continues its
@@ -62,7 +92,7 @@ export default async function handler(req, res) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': ANTHROPIC_VERSION },
+        headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY, 'anthropic-version': ANTHROPIC_VERSION },
         body: JSON.stringify({ ...payload, messages: conversation })
       });
       data = await response.json();
