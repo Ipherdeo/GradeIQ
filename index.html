@@ -335,6 +335,11 @@ footer{text-align:center;padding:2rem;font-size:12px;color:var(--text3);border-t
 
   <!-- TRACKER -->
   <div id="panel-tracker" class="panel active">
+    <div class="section-head">Previous semesters <span style="font-size:11px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400;margin-left:4px">(optional)</span></div>
+    <div class="pred-grid" style="margin-bottom:1.25rem">
+      <div class="pred-field"><label>Previous total credit units</label><input type="number" id="prior-units" min="0" step="0.5" placeholder="e.g. 60" oninput="syncPredictorStanding()"></div>
+      <div class="pred-field"><label>Previous total quality points</label><input type="number" id="prior-points" min="0" step="0.1" placeholder="e.g. 210" oninput="syncPredictorStanding()"></div>
+    </div>
     <div id="semesters-container"></div>
     <div class="actions">
       <button class="btn btn-outline" onclick="addSemester()">+ Add Semester</button>
@@ -605,7 +610,7 @@ async function fetchInlineTips(sid,idx,btn){
     const text=d.choices?.[0]?.message?.content;
     if(!text){box.textContent='Could not load. Try again.';box.dataset.loaded='yes';btn.textContent='AI TIPS';btn.classList.remove('busy');return;}
     box.textContent=text;box.dataset.loaded='yes';
-  }catch(e){box.textContent='Could not load. Check your connection.';}
+  }catch(e){box.textContent='Could not load: '+e.message;box.dataset.loaded='yes';}
   btn.textContent='AI TIPS';btn.classList.remove('busy');
 }
 function renderSemesters(){
@@ -651,9 +656,11 @@ function updateTrackerMetrics(d){
     <div class="metric-card"><div class="metric-label">Semesters</div><div class="metric-val">${sems.length}</div></div>`;
 }
 function calculate(){
-  let pts=0,units=0;
+  const priorPoints=+document.getElementById('prior-points').value||0,priorUnits=+document.getElementById('prior-units').value||0;
+  if((priorUnits===0&&priorPoints>0)||priorPoints>priorUnits*cfg().max){alert('Previous quality points must be between 0 and previous units multiplied by the maximum grade point.');return;}
+  let pts=priorPoints,units=priorUnits;
   sems.forEach(s=>s.courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}}));
-  if(!units){alert('Add some courses with units first.');return;}
+  if(!units){alert('Enter previous units or add courses with units first.');return;}
   const cgpa=pts/units;lastTracker={cgpa,totalUnits:units,totalPts:pts};
   updateTrackerMetrics(lastTracker);
   document.getElementById('tracker-results').style.display='block';
@@ -662,7 +669,12 @@ function calculate(){
 
 // ── PREDICTOR ────────────────────────────────────────────────
 function syncPredictorStanding(){
-  let pts=0,units=0;
+  const priorPoints=+document.getElementById('prior-points').value||0,priorUnits=+document.getElementById('prior-units').value||0;
+  if(priorPoints>priorUnits*cfg().max){
+    document.getElementById('pred-standing').innerHTML='<div class="cs-row"><span class="cs-label" style="color:var(--red)">Previous quality points cannot exceed previous units multiplied by the maximum grade point.</span></div>';
+    return;
+  }
+  let pts=priorPoints,units=priorUnits;
   sems.forEach(s=>s.courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}}));
   const el=document.getElementById('pred-standing');
   if(units>0){
@@ -896,7 +908,7 @@ Use this exact structure:
     buildInsightUI(body,data,course);
   }catch(e){
     body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--red)';
-    body.textContent='Could not load insights. Check your connection and try again.';
+    body.textContent='Could not load insights: '+e.message;
   }
   btn.disabled=false;btn.textContent='Get Insights';
   if(!recentList.includes(course)){recentList.unshift(course);if(recentList.length>6)recentList.pop();renderRecent();}

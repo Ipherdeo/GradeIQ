@@ -43,12 +43,14 @@ function textFrom(content) {
 const SYSTEM_PROMPT = 'You are GradeIQ, an accurate academic adviser for Nigerian university students. Use web search when current, university-specific, or factual research would improve an answer. Reason carefully, do not invent sources or policies, and give practical, concise guidance. Do not expose private reasoning.';
 
 function isOpenAICompatible() {
-  return (process.env.AI_API_FORMAT || '').toLowerCase() === 'openai';
+  const format = (process.env.AI_API_FORMAT || '').toLowerCase();
+  return format === 'openai' || (!format && Boolean(process.env.AI_API_KEY) && !process.env.ANTHROPIC_API_KEY);
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' }, { Allow: 'POST' });
-  if (!process.env.AI_API_KEY && !process.env.ANTHROPIC_API_KEY) return send(res, 500, { error: 'Server configuration is incomplete.' });
+  if (!process.env.AI_API_KEY && !process.env.ANTHROPIC_API_KEY) return send(res, 500, { error: 'Server configuration is incomplete. Add AI_API_KEY (OpenAI-compatible provider) or ANTHROPIC_API_KEY in Vercel Environment Variables.' });
+  if (process.env.AI_API_FORMAT && !['openai', 'anthropic'].includes(process.env.AI_API_FORMAT.toLowerCase())) return send(res, 500, { error: 'AI_API_FORMAT must be either openai or anthropic.' });
 
   const limit = await rateLimit(`gradeiq:ai:${clientIp(req)}`);
   if (!limit.allowed) return send(res, 429, { error: 'Too many AI requests. Please try again shortly.' }, { 'Retry-After': String(limit.retryAfter) });
@@ -56,6 +58,10 @@ export default async function handler(req, res) {
   const messages = req.body?.messages;
   if (!Array.isArray(messages) || messages.length === 0 || messages.length > 4) return send(res, 400, { error: 'Invalid messages payload.' });
   const safeMessages = messages.map(({ role, content }) => ({ role: role === 'assistant' ? 'assistant' : 'user', content: String(content || '').slice(0, 6000) }));
+
+  if (!isOpenAICompatible() && !(process.env.ANTHROPIC_API_KEY || (process.env.AI_API_KEY && (process.env.AI_API_FORMAT || '').toLowerCase() === 'anthropic'))) {
+    return send(res, 500, { error: 'Anthropic mode requires ANTHROPIC_API_KEY. For an OpenAI-compatible API key, set AI_API_FORMAT=openai and configure AI_API_BASE_URL and AI_MODEL.' });
+  }
 
   const payload = {
     model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
@@ -68,6 +74,7 @@ export default async function handler(req, res) {
 
   try {
     if (isOpenAICompatible()) {
+      if (!process.env.AI_API_KEY) return send(res, 500, { error: 'AI_API_FORMAT=openai requires AI_API_KEY.' });
       const baseUrl = (process.env.AI_API_BASE_URL || 'https://vyceai.com/v1').replace(/\/$/, '');
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -105,6 +112,7 @@ export default async function handler(req, res) {
     // Maintain the existing browser response shape while switching providers.
     return send(res, 200, { choices: [{ message: { content } }], usage: data.usage });
   } catch (error) {
-    return send(res, 502, { error: 'Could not reach Claude. Please try again.' });
+    console.error('AI insights request failed:', error);
+    return send(res, 502, { error: `Could not reach the AI provider. ${error.message || 'Please try again.'}` });
   }
 }
