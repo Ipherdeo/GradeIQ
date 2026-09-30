@@ -19,21 +19,28 @@ function clientIp(req) {
 }
 
 async function rateLimit(key) {
-  // Upstash is durable across Vercel function instances. The local fallback still
-  // protects development and deployments where UPSTASH_REDIS_REST_URL is absent.
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    const url = `${process.env.UPSTASH_REDIS_REST_URL}/incr/${encodeURIComponent(key)}`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` } });
-    const { result: count } = await response.json();
-    if (count === 1) await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/expire/${encodeURIComponent(key)}/${WINDOW_SECONDS}`, { headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` } });
-    return { allowed: count <= MAX_REQUESTS, retryAfter: WINDOW_SECONDS };
-  }
   const now = Date.now();
-  const item = memoryCounters.get(key);
-  const active = item && item.resetAt > now ? item : { count: 0, resetAt: now + WINDOW_SECONDS * 1000 };
+  const windowId = Math.floor(now / (WINDOW_SECONDS * 1000));
+  const windowKey = `${key}:${windowId}`;
+  const retryAfter = Math.ceil(((windowId + 1) * WINDOW_SECONDS * 1000 - now) / 1000);
+
+  // Bucketed keys prevent a missed Redis expiry from permanently locking out an IP.
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const baseUrl = process.env.UPSTASH_REDIS_REST_URL.replace(/\/$/, '');
+    const headers = { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` };
+    const response = await fetch(`${baseUrl}/incr/${encodeURIComponent(windowKey)}`, { headers });
+    const data = await response.json();
+    if (!response.ok || data.error || !Number.isFinite(Number(data.result))) throw new Error(data.error || 'Upstash returned an invalid rate-limit response.');
+    const count = Number(data.result);
+    const expireResponse = await fetch(`${baseUrl}/expire/${encodeURIComponent(windowKey)}/${Math.max(WINDOW_SECONDS * 2, 60)}`, { headers });
+    if (!expireResponse.ok) console.error('Could not expire the Upstash rate-limit key.');
+    return { allowed: count <= MAX_REQUESTS, retryAfter };
+  }
+  const item = memoryCounters.get(windowKey);
+  const active = item || { count: 0, resetAt: (windowId + 1) * WINDOW_SECONDS * 1000 };
   active.count += 1;
-  memoryCounters.set(key, active);
-  return { allowed: active.count <= MAX_REQUESTS, retryAfter: Math.ceil((active.resetAt - now) / 1000) };
+  memoryCounters.set(windowKey, active);
+  return { allowed: active.count <= MAX_REQUESTS, retryAfter };
 }
 
 function textFrom(content) {
@@ -52,7 +59,13 @@ export default async function handler(req, res) {
   if (!process.env.AI_API_KEY && !process.env.ANTHROPIC_API_KEY) return send(res, 500, { error: 'Server configuration is incomplete. Add AI_API_KEY (OpenAI-compatible provider) or ANTHROPIC_API_KEY in Vercel Environment Variables.' });
   if (process.env.AI_API_FORMAT && !['openai', 'anthropic'].includes(process.env.AI_API_FORMAT.toLowerCase())) return send(res, 500, { error: 'AI_API_FORMAT must be either openai or anthropic.' });
 
-  const limit = await rateLimit(`gradeiq:ai:${clientIp(req)}`);
+  let limit;
+  try {
+    limit = await rateLimit(`gradeiq:ai:${clientIp(req)}`);
+  } catch (error) {
+    console.error('AI rate-limit check failed:', error);
+    return send(res, 503, { error: 'The rate-limit service is unavailable. Check the Upstash REST URL and token in Vercel.' });
+  }
   if (!limit.allowed) return send(res, 429, { error: 'Too many AI requests. Please try again shortly.' }, { 'Retry-After': String(limit.retryAfter) });
 
   const messages = req.body?.messages;
