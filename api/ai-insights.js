@@ -99,6 +99,8 @@ export default async function handler(req, res) {
     if (isOpenAICompatible()) {
       if (!process.env.AI_API_KEY) return send(res, 500, { error: 'AI_API_FORMAT=openai requires AI_API_KEY.' });
       const baseUrl = (process.env.AI_API_BASE_URL || 'https://vyceai.com/v1').replace(/\/$/, '');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', Authorization: `Bearer ${process.env.AI_API_KEY}` },
@@ -106,8 +108,11 @@ export default async function handler(req, res) {
           model: process.env.AI_MODEL || DEFAULT_MODEL,
           max_tokens: 1400,
           messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...safeMessages]
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
+      if (response.status === 504) return send(res, 504, { error: 'Vyce AI timed out before completing this request. Try again with a shorter course name or later.' });
       const data = await readProviderResponse(response, `AI provider at ${baseUrl}/chat/completions`);
       if (!response.ok) return send(res, response.status, { error: data.error?.message || data.message || 'VyceAI could not complete this request.' }, response.headers.get('retry-after') ? { 'Retry-After': response.headers.get('retry-after') } : {});
       const content = data.choices?.[0]?.message?.content?.trim();
@@ -136,6 +141,7 @@ export default async function handler(req, res) {
     return send(res, 200, { choices: [{ message: { content } }], usage: data.usage });
   } catch (error) {
     console.error('AI insights request failed:', error);
+    if (error.name === 'AbortError') return send(res, 504, { error: 'The AI provider took too long to respond. Please try again.' });
     return send(res, 502, { error: `Could not reach the AI provider. ${error.message || 'Please try again.'}` });
   }
 }

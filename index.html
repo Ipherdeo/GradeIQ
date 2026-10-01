@@ -82,6 +82,7 @@ select option{background:#1e2220}
 .ai-tips-btn.busy{opacity:0.5;cursor:default}
 .inline-insight-box{background:rgba(37,99,235,.04);border:1px solid var(--accent-dim2);border-radius:var(--radius-sm);padding:10px 13px;font-size:12.5px;color:var(--text2);line-height:1.8;display:none}
 .inline-insight-box.open{display:block;animation:fadeUp 0.2s ease}
+.insight-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}.insight-tools label{font-size:12px;color:var(--text3)}.insight-tools select{width:auto;min-width:145px}
 .add-row-btn{margin:4px 20px 14px;background:transparent;border:1px dashed var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-size:13px;padding:8px;width:calc(100% - 40px);cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif}
 .add-row-btn:hover{color:var(--accent);border-color:var(--accent-dim2);background:var(--accent-dim)}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin:1.25rem 0}
@@ -347,6 +348,7 @@ footer{text-align:center;padding:2rem;font-size:12px;color:var(--text3);border-t
     </div>
     <div id="tracker-results" style="display:none">
       <div class="result-grid" id="tracker-metrics"></div>
+      <button class="btn btn-outline" onclick="exportTrackerCSV()">Export CSV</button>
     </div>
   </div>
 
@@ -415,6 +417,16 @@ footer{text-align:center;padding:2rem;font-size:12px;color:var(--text3);border-t
         <input type="text" id="insight-input" placeholder="e.g. Thermodynamics, Organic Chemistry, Fluid Mechanics…" onkeydown="if(event.key==='Enter')getInsight()">
         <button class="btn-go" id="insight-go-btn" onclick="getInsight()">Get Insights</button>
       </div>
+      <div class="insight-tools">
+        <label for="practice-difficulty">Practice level</label>
+        <select id="practice-difficulty">
+          <option value="beginner">Beginner</option>
+          <option value="exam" selected>University exam</option>
+          <option value="advanced">Advanced</option>
+        </select>
+        <button class="btn btn-outline" onclick="generateStudyPlan()">Study plan</button>
+        <button class="btn btn-outline" onclick="generatePracticeQuestions()">Practice questions</button>
+      </div>
       <div id="recent-wrap" style="display:none" class="recent-wrap">
         <div class="recent-label">Recent</div>
         <div class="recent-chips" id="recent-chips"></div>
@@ -426,6 +438,10 @@ footer{text-align:center;padding:2rem;font-size:12px;color:var(--text3);border-t
         <span class="powered-by">Powered by AI</span>
       </div>
       <div id="insight-card-body"></div>
+    </div>
+    <div class="insight-card" id="ai-extra-card" style="display:none">
+      <div class="insight-card-head"><span class="insight-course-name" id="ai-extra-title"></span></div>
+      <div id="ai-extra-body"></div>
     </div>
   </div>
 
@@ -523,6 +539,19 @@ function setScale(n,btn){
 // ── STATE ─────────────────────────────────────────────────────
 let semCount=0,sems=[],predCourses=[],predCount=0;
 let plannerCourses=[],plannerCount=0,recentList=[],lastTracker=null;
+const STORAGE_KEY='gradeiq_tracker_v1';
+function saveState(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({currentScale,sems,semCount,priorUnits:document.getElementById('prior-units')?.value||'',priorPoints:document.getElementById('prior-points')?.value||''}));}catch(e){}
+}
+function loadState(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(!saved||!Array.isArray(saved.sems)||!saved.sems.length)return false;
+    currentScale=saved.currentScale===5?5:4;sems=saved.sems;semCount=saved.semCount||sems.length;
+    document.getElementById('prior-units').value=saved.priorUnits||'';document.getElementById('prior-points').value=saved.priorPoints||'';
+    document.querySelectorAll('.toggle-opt').forEach((b,i)=>b.classList.toggle('active',(i===1)===(currentScale===5)));
+    document.getElementById('hero-scale-n').textContent=currentScale+'.0';return true;
+  }catch(e){return false;}
+}
 
 // ── TRACKER ───────────────────────────────────────────────────
 function calcSemGPA(courses){
@@ -530,10 +559,10 @@ function calcSemGPA(courses){
   courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}});
   return{gpa:units?pts/units:0,pts,units};
 }
-function addSemester(){semCount++;sems.push({id:semCount,courses:[]});const s=sems[sems.length-1];addCourse(s);addCourse(s);renderSemesters();}
+function addSemester(){semCount++;sems.push({id:semCount,courses:[]});const s=sems[sems.length-1];addCourse(s);addCourse(s);renderSemesters();saveState();}
 function addCourse(sem){sem.courses.push({name:'',units:'',score:'',grade:'A'});}
-function removeCourse(sid,idx){const s=sems.find(x=>x.id==sid);if(s){s.courses.splice(idx,1);renderSemesters();}}
-function removeSem(id){sems=sems.filter(s=>s.id!=id);renderSemesters();}
+function removeCourse(sid,idx){const s=sems.find(x=>x.id==sid);if(s){s.courses.splice(idx,1);renderSemesters();saveState();}}
+function removeSem(id){sems=sems.filter(s=>s.id!=id);renderSemesters();saveState();}
 
 function syncCF(el){
   const[,sid,idx,field]=el.dataset.f.split(',');
@@ -541,6 +570,7 @@ function syncCF(el){
   const c=sem.courses[idx];c[field]=el.value;
   if(field==='score'){const g=cfg().s2g(el.value);if(g){c.grade=g;const p=el.closest('.course-row').querySelector('.grade-pill');if(p){p.textContent=g;p.className='grade-pill g-'+g;}}}
   updateSemBadges(sid);
+  saveState();
 }
 function updateSemBadges(sid){
   const sem=sems.find(s=>s.id==sid);const card=document.querySelector('[data-sem="'+sid+'"]');
@@ -594,6 +624,28 @@ async function callAI(messages) {
     throw err;
   }
   return data;
+}
+
+function currentCourseForAI(){
+  const course=document.getElementById('insight-input').value.trim();
+  if(!course){alert('Enter a course or topic first.');return null;}
+  if(!AI_RATE.canCall()){alert(`Too many AI requests. Please wait ${AI_RATE.remainingCooldown()||'a moment'} seconds.`);return null;}
+  AI_RATE.increment();
+  return course;
+}
+function showExtraAI(title,text){
+  const card=document.getElementById('ai-extra-card'),body=document.getElementById('ai-extra-body');
+  document.getElementById('ai-extra-title').textContent=title;card.style.display='block';body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--text2);line-height:1.9;white-space:pre-wrap';body.textContent=text;card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function generateStudyPlan(){
+  const course=currentCourseForAI();if(!course)return;
+  const body=document.getElementById('ai-extra-body');document.getElementById('ai-extra-title').textContent='Study plan';document.getElementById('ai-extra-card').style.display='block';body.textContent='Creating a study plan…';
+  try{const d=await callAI([{role:'user',content:`Create a practical 7-day study plan for the Nigerian university course "${course}". Include daily goals, active-recall tasks, practice work, and a final revision day. Keep it concise and return plain text with numbered days.`}]);showExtraAI(`Study plan: ${course}`,d.choices?.[0]?.message?.content||'No plan returned.');}catch(e){insightError(body,e,generateStudyPlan);}
+}
+async function generatePracticeQuestions(){
+  const course=currentCourseForAI();if(!course)return;
+  const level=document.getElementById('practice-difficulty').value;const body=document.getElementById('ai-extra-body');document.getElementById('ai-extra-title').textContent='Practice questions';document.getElementById('ai-extra-card').style.display='block';body.textContent='Creating questions…';
+  try{const d=await callAI([{role:'user',content:`Create 5 ${level}-level university practice questions for the Nigerian course "${course}". Include a short answer key after the questions. Use plain text, number every question, and keep explanations concise.`}]);showExtraAI(`${level[0].toUpperCase()+level.slice(1)} practice: ${course}`,d.choices?.[0]?.message?.content||'No questions returned.');}catch(e){insightError(body,e,generatePracticeQuestions);}
 }
 
 function insightError(body,error,retryFn){
@@ -674,14 +726,22 @@ function updateTrackerMetrics(d){
 }
 function calculate(){
   const priorPoints=+document.getElementById('prior-points').value||0,priorUnits=+document.getElementById('prior-units').value||0;
+  saveState();
   if((priorUnits===0&&priorPoints>0)||priorPoints>priorUnits*cfg().max){alert('Previous quality points must be between 0 and previous units multiplied by the maximum grade point.');return;}
   let pts=priorPoints,units=priorUnits;
   sems.forEach(s=>s.courses.forEach(c=>{const u=+c.units,g=cfg().GP[c.grade]??0;if(!isNaN(u)&&u>0){pts+=u*g;units+=u;}}));
   if(!units){alert('Enter previous units or add courses with units first.');return;}
   const cgpa=pts/units;lastTracker={cgpa,totalUnits:units,totalPts:pts};
+  saveState();
   updateTrackerMetrics(lastTracker);
   document.getElementById('tracker-results').style.display='block';
   document.getElementById('tracker-results').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function exportTrackerCSV(){
+  if(!lastTracker)return;
+  const rows=[['Metric','Value'],['CGPA',lastTracker.cgpa.toFixed(2)],['Total credit units',lastTracker.totalUnits],['Quality points',lastTracker.totalPts.toFixed(1)],['Semesters',sems.length]];
+  const csv=rows.map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='gradeiq-cgpa-summary.csv';a.click();URL.revokeObjectURL(url);
 }
 
 // ── PREDICTOR ────────────────────────────────────────────────
@@ -1030,7 +1090,7 @@ function obDismiss(){
 }
 
 // ── INIT ─────────────────────────────────────────────────────
-addSemester();
+if(!loadState())addSemester();else renderSemesters();
 addPredCourse();addPredCourse();renderPredCourses();
 addPlannerCourse();addPlannerCourse();renderPlannerCourses();
 </script>
