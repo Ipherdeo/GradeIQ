@@ -584,9 +584,26 @@ async function callAI(messages) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages })
   });
-  const data = await r.json();
-  if(!r.ok) throw new Error(data.error || 'AI request failed');
+  const text = await r.text();
+  let data;
+  try{data=JSON.parse(text);}catch(e){throw new Error(`Server returned HTTP ${r.status} instead of JSON.`);}
+  if(!r.ok){
+    const err=new Error(data.error || 'AI request failed');
+    err.status=r.status;
+    err.retryAfter=Number(r.headers.get('Retry-After')||0);
+    throw err;
+  }
   return data;
+}
+
+function insightError(body,error,retryFn){
+  body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--red);line-height:1.7';
+  body.innerHTML='';
+  const message=document.createElement('div');
+  message.textContent=error.retryAfter?`${error.message} Try again in ${error.retryAfter} seconds.`:error.message;
+  const retry=document.createElement('button');
+  retry.className='btn btn-outline';retry.style.marginTop='12px';retry.textContent='Retry';retry.onclick=retryFn;
+  body.append(message,retry);
 }
 
 async function fetchInlineTips(sid,idx,btn){
@@ -902,13 +919,14 @@ Use this exact structure:
     raw=raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
     let data;
     try{data=JSON.parse(raw);}catch(parseErr){
-      body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--text2);line-height:1.9;white-space:pre-wrap';
-      body.textContent=raw;btn.disabled=false;btn.textContent='Get Insights';return;
+      insightError(body,new Error('The AI returned an invalid response. Please try again.'),getInsight);
+      btn.disabled=false;btn.textContent='Get Insights';return;
     }
     buildInsightUI(body,data,course);
   }catch(e){
-    body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--red)';
-    body.textContent='Could not load insights: '+e.message;
+    const displayError=new Error('Could not load insights: '+e.message);
+    displayError.retryAfter=e.retryAfter;
+    insightError(body,displayError,getInsight);
   }
   btn.disabled=false;btn.textContent='Get Insights';
   if(!recentList.includes(course)){recentList.unshift(course);if(recentList.length>6)recentList.pop();renderRecent();}

@@ -47,6 +47,16 @@ function textFrom(content) {
   return (content || []).filter(block => block.type === 'text').map(block => block.text).join('\n').trim();
 }
 
+async function readProviderResponse(response, provider) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const excerpt = text.replace(/\s+/g, ' ').slice(0, 180);
+    throw new Error(`${provider} returned HTTP ${response.status} with non-JSON content${excerpt ? `: ${excerpt}` : '.'}`);
+  }
+}
+
 const SYSTEM_PROMPT = 'You are GradeIQ, an accurate academic adviser for Nigerian university students. Use web search when current, university-specific, or factual research would improve an answer. Reason carefully, do not invent sources or policies, and give practical, concise guidance. Do not expose private reasoning.';
 
 function isOpenAICompatible() {
@@ -98,8 +108,8 @@ export default async function handler(req, res) {
           messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...safeMessages]
         })
       });
-      const data = await response.json();
-      if (!response.ok) return send(res, response.status, { error: data.error?.message || data.message || 'VyceAI could not complete this request.' });
+      const data = await readProviderResponse(response, `AI provider at ${baseUrl}/chat/completions`);
+      if (!response.ok) return send(res, response.status, { error: data.error?.message || data.message || 'VyceAI could not complete this request.' }, response.headers.get('retry-after') ? { 'Retry-After': response.headers.get('retry-after') } : {});
       const content = data.choices?.[0]?.message?.content?.trim();
       if (!content) return send(res, 502, { error: 'VyceAI returned no usable text.' });
       return send(res, 200, { choices: [{ message: { content } }], usage: data.usage });
@@ -115,8 +125,8 @@ export default async function handler(req, res) {
         headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY, 'anthropic-version': ANTHROPIC_VERSION },
         body: JSON.stringify({ ...payload, messages: conversation })
       });
-      data = await response.json();
-      if (!response.ok) return send(res, response.status, { error: data.error?.message || 'Claude could not complete this request.' });
+      data = await readProviderResponse(response, 'Anthropic');
+      if (!response.ok) return send(res, response.status, { error: data.error?.message || 'Claude could not complete this request.' }, response.headers.get('retry-after') ? { 'Retry-After': response.headers.get('retry-after') } : {});
       if (data.stop_reason !== 'pause_turn') break;
       conversation = [...conversation, { role: 'assistant', content: data.content }];
     }
