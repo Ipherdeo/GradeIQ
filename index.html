@@ -581,7 +581,7 @@ function updateSemBadges(sid){
 }
 // ── Rate limiting ────────────────────────────────────────────────
 const AI_RATE = {
-  MAX_CALLS: 5,
+  MAX_CALLS: 20,
   COOLDOWN_MS: 60000, // 1 minute cooldown after limit hit
   _count: parseInt(sessionStorage.getItem('ai_call_count') || '0'),
   _cooldownUntil: parseInt(sessionStorage.getItem('ai_cooldown_until') || '0'),
@@ -599,6 +599,10 @@ const AI_RATE = {
   },
   increment() {
     this._count++;
+    sessionStorage.setItem('ai_call_count', this._count);
+  },
+  refund() {
+    this._count=Math.max(0,this._count-1);
     sessionStorage.setItem('ai_call_count', this._count);
   },
   remainingCooldown() {
@@ -629,6 +633,7 @@ async function callAI(messages) {
 function currentCourseForAI(){
   const course=document.getElementById('insight-input').value.trim();
   if(!course){alert('Enter a course or topic first.');return null;}
+  if(course.length>120){alert('Please keep the course or topic under 120 characters.');return null;}
   if(!AI_RATE.canCall()){alert(`Too many AI requests. Please wait ${AI_RATE.remainingCooldown()||'a moment'} seconds.`);return null;}
   AI_RATE.increment();
   return course;
@@ -640,12 +645,12 @@ function showExtraAI(title,text){
 async function generateStudyPlan(){
   const course=currentCourseForAI();if(!course)return;
   const body=document.getElementById('ai-extra-body');document.getElementById('ai-extra-title').textContent='Study plan';document.getElementById('ai-extra-card').style.display='block';body.textContent='Creating a study plan…';
-  try{const d=await callAI([{role:'user',content:`Create a practical 7-day study plan for the Nigerian university course "${course}". Include daily goals, active-recall tasks, practice work, and a final revision day. Keep it concise and return plain text with numbered days.`}]);showExtraAI(`Study plan: ${course}`,d.choices?.[0]?.message?.content||'No plan returned.');}catch(e){insightError(body,e,generateStudyPlan);}
+  try{const d=await callAI([{role:'user',content:`Create a practical 7-day study plan for the Nigerian university course "${course}". Include daily goals, active-recall tasks, practice work, and a final revision day. Keep it concise and return plain text with numbered days.`}]);showExtraAI(`Study plan: ${course}`,d.choices?.[0]?.message?.content||'No plan returned.');}catch(e){AI_RATE.refund();insightError(body,e,generateStudyPlan);}
 }
 async function generatePracticeQuestions(){
   const course=currentCourseForAI();if(!course)return;
   const level=document.getElementById('practice-difficulty').value;const body=document.getElementById('ai-extra-body');document.getElementById('ai-extra-title').textContent='Practice questions';document.getElementById('ai-extra-card').style.display='block';body.textContent='Creating questions…';
-  try{const d=await callAI([{role:'user',content:`Create 5 ${level}-level university practice questions for the Nigerian course "${course}". Include a short answer key after the questions. Use plain text, number every question, and keep explanations concise.`}]);showExtraAI(`${level[0].toUpperCase()+level.slice(1)} practice: ${course}`,d.choices?.[0]?.message?.content||'No questions returned.');}catch(e){insightError(body,e,generatePracticeQuestions);}
+  try{const d=await callAI([{role:'user',content:`Create 5 ${level}-level university practice questions for the Nigerian course "${course}". Include a short answer key after the questions. Use plain text, number every question, and keep explanations concise.`}]);showExtraAI(`${level[0].toUpperCase()+level.slice(1)} practice: ${course}`,d.choices?.[0]?.message?.content||'No questions returned.');}catch(e){AI_RATE.refund();insightError(body,e,generatePracticeQuestions);}
 }
 
 function insightError(body,error,retryFn){
@@ -970,7 +975,8 @@ Use this exact structure:
     AI_RATE.increment();
     const d=await callAI([{role:'user',content:prompt}]);
     const rawText=d.choices?.[0]?.message?.content;
-    if(!rawText){
+     if(!rawText){
+       AI_RATE.refund();
       body.style.cssText='padding:1.25rem 1.5rem;font-size:14px;color:var(--red)';
       body.textContent='Could not load insights. Error: '+JSON.stringify(d).slice(0,200);
       btn.disabled=false;btn.textContent='Get Insights';return;
@@ -978,12 +984,14 @@ Use this exact structure:
     let raw=rawText.trim();
     raw=raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
     let data;
-    try{data=JSON.parse(raw);}catch(parseErr){
+     try{data=JSON.parse(raw);}catch(parseErr){
+       AI_RATE.refund();
       insightError(body,new Error('The AI returned an invalid response. Please try again.'),getInsight);
       btn.disabled=false;btn.textContent='Get Insights';return;
     }
     buildInsightUI(body,data,course);
   }catch(e){
+    AI_RATE.refund();
     const displayError=new Error('Could not load insights: '+e.message);
     displayError.retryAfter=e.retryAfter;
     insightError(body,displayError,getInsight);
